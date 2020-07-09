@@ -1,0 +1,145 @@
+1. Viewing a range of lines of a document
+
+# sed -n '5,10p' myfile.txt
+
+2. Viewing the entire file except a given range
+
+$ sed '5,10d' myfile.txt
+
+3. To find number of cores
+
+$ cat /proc/cpuinfo | grep processor | wc -l
+
+$ cat /proc/cpuinfo | grep 'core id'
+
+
+Syntax:
+	sed 'Nd' file
+	N --> denotes nth line 
+	d --> denotes delete a line 
+
+1) How to Delete First Line from a File?
+
+$ sed '1d' file.txt
+
+2) How to Delete Last Line from a File?
+
+$ sed '$d' file.txt 
+		
+		Where $ denotes last line of a file
+
+3) How to Delete Particular Line from a File?
+
+$ sed '3d' file.txt
+
+4) How to Delete Range of Lines from a File?
+
+$ sed '5,8d' file.txt
+
+5) How to Delete Multiple Lines from a File?
+
+$ sed '1d;4d;6d;$d' file.txt
+
+5a) How to Delete Lines Other Than the Specified Range from a File?
+
+$ sed '3,8!d' file.txt
+
+6) How to Delete Empty or Blank Lines from a File?
+
+$ sed '/^$/d' file.txt
+
+7) How to Delete Lines That Contain a Pattern from a File?
+
+$ sed '/System/d' file.txt
+
+8) How to delete the lines that Containing One of the  Multiple Strings mentioned , from the file?
+
+$ sed '/System\ | Linux/d' file.txt
+
+9) How to Delete Lines That Begin with Specific Character from a File?
+
+$ sed '/^R/d' file.txt
+
+$ sed '/^[RF]/d' file.txt --> This will remove lines starting with R or F 
+
+10) How to Delete Lines That End with Specified Character from a File?
+
+$ sed '/m$/d' file.txt
+
+$ sed '/[xm]$/d' file.txt --> This will remove the line which ends with either m or x 
+
+11) How to Delete All Lines That Start with Uppercase letter
+
+$ sed '/^[A-Z]/d' file.txt
+
+12) How to Delete a Matching Pattern Lines with Specified Range in a File?
+
+$ sed '/1,6{/Linux/d;}' file.txt
+
+13) How to Delete Pattern Matching Line and also the Next Line?
+
+$ sed '/System/{N;d}' file.txt
+
+14) How to Delete lines that contains Digits from a File?
+
+$ sed '/[0-9]/d' file.txt
+
+$ sed '/^[0-9]/d' file.txt -> This command removes all the lines which only begins with digits.
+
+$ sed '/[0-9]$/d' file.txt -> This command removes all the lines which ends with digits.
+
+15) How to Delete lines that contains Alphabetic Characters from a File?
+
+$ sed '/[A-Za-z]/d' file.txt
+
+
+===================================================
+Memory checks on linux terminal 
+===================================================
+
+[spark@cnsmr01 conf]$ free -mh
+              total        used        free      shared  buff/cache   available
+Mem:          3.7Gi       639Mi       2.2Gi       8.0Mi       879Mi       2.8Gi
+Swap:         1.7Gi          0B       1.7Gi
+
+
+[spark@spark01 ~]$ free -mh
+              total        used        free      shared  buff/cache   available
+Mem:          7.6Gi       1.2Gi       4.0Gi       8.0Mi       2.4Gi       6.1Gi
+Swap:         1.7Gi          0B       1.7Gi
+
+[spark@spark02 ~]$ free -mh
+              total        used        free      shared  buff/cache   available
+Mem:          7.6Gi       1.1Gi       5.1Gi       8.0Mi       1.5Gi       6.2Gi
+Swap:         1.7Gi          0B       1.7Gi
+
+[spark@spark03 ~]$ free -mh
+              total        used        free      shared  buff/cache   available
+Mem:          7.6Gi       1.2Gi       5.1Gi       8.0Mi       1.4Gi       6.2Gi
+Swap:         1.7Gi          0B       1.7Gi
+
+-----------------------------------------------
+How to zip a file?
+-----------------------------------------------
+$ zip -r directory.zip directory
+
+
+Replace command 
+-----------------
+4. Replacing words or characters (basic substitution)
+To replace every instance of the word version with story in myfile.txt, do:
+
+# sed 's/version/story/g' myfile.txt
+
+Additionally, you may want to consider using gi instead of g in order to ignore character case:
+
+# sed 's/version/story/gi' myfile.txt
+
+
+[spark@cnsmr01 bin]$ grep "ReadConfig_alert" *.py
+MongodbConnection.py:from ReadConfig_alert import readValue as ReadConfig_readValue
+SendMail.py:from ReadConfig_alert import readValue
+SparkUDF.py:from ReadConfig_alert import readValue as ReadConfig_readValue
+[spark@cnsmr01 bin]$
+
+

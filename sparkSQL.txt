@@ -1,0 +1,1590 @@
+scala> val rdd = spark.sparkContext.parallelize(1 to 10)
+rdd: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:23
+
+scala> rdd.collect
+res0: Array[Int] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+scala> import scala.util.Random 
+import scala.util.Random
+
+scala> val mapping = rdd.map(x => (x, Random.nextInt(100)*x))
+mapping: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[1] at map at <console>:26
+
+scala> val df = mapping.toDF("key","value")
+20/02/03 14:19:08 WARN lineage.LineageWriter: Lineage directory /var/log/spark/lineage doesn't exist or is not writable. Lineage for this application will be disabled.
+df: org.apache.spark.sql.DataFrame = [key: int, value: int]
+
+scala> df.show
++---+-----+
+|key|value|
++---+-----+
+|  1|   96|
+|  2|    0|
+|  3|  294|
+|  4|  188|
+|  5|   10|
+|  6|  474|
+|  7|  588|
+|  8|  680|
+|  9|   36|
+| 10|   10|
++---+-----+
+
+scala> df.withColumn("add",col("key")+col("value"))
+res21: org.apache.spark.sql.DataFrame = [key: int, value: int ... 1 more field]
+
+scala> df.withColumn("add",col("key")+col("value")).show
++---+-----+---+
+|key|value|add|
++---+-----+---+
+|  1|   67| 68|
+|  2|  168|170|
+|  3|  285|288|
+|  4|   64| 68|
+|  5|  250|255|
+|  6|   66| 72|
+|  7|  364|371|
+|  8|  328|336|
+|  9|   99|108|
+| 10|  830|840|
++---+-----+---+
+
+--> Concatenation of two strings using withColumn
+
+scala> df.withColumn("Added10toKey",concat('key.cast(StringType),'value)).show
++---+-----+------------+
+|key|value|Added10toKey|
++---+-----+------------+
+|  1|   29|         129|
+|  2|  138|        2138|
+|  3|   54|         354|
+|  4|   64|         464|
+|  5|  365|        5365|
+|  6|  384|        6384|
+|  7|  280|        7280|
+|  8|  448|        8448|
+|  9|  360|        9360|
+| 10|  160|       10160|
++---+-----+------------+
+
+scala> val data = Seq(
+     |       Row(Row("James ","","Smith"),"36636","M","3000"),
+     |       Row(Row("Michael ","Rose",""),"40288","M","4000"),
+     |       Row(Row("Robert ","","Williams"),"42114","M","4000"),
+     |       Row(Row("Maria ","Anne","Jones"),"39192","F","4000"),
+     |       Row(Row("Jen","Mary","Brown"),"","F","-1")
+     |     )
+data: Seq[org.apache.spark.sql.Row] = List(
+				[[James ,,Smith],36636,M,3000],
+				[[Michael ,Rose,],40288,M,4000],
+				[[Robert ,,Williams],42114,M,4000],
+				[[Maria ,Anne,Jones],39192,F,4000],
+ 				[[Jen,Mary,Brown],,F,-1])
+
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+val schema = new StructType()
+      .add("name",new StructType()
+        .add("firstname",StringType)
+        .add("middlename",StringType)
+        .add("lastname",StringType))
+      .add("dob",StringType)
+      .add("gender",StringType)
+      .add("salary",StringType)
+
+// Exiting paste mode, now interpreting.
+
+schema: org.apache.spark.sql.types.StructType = StructType(
+						StructField(name,StructType(
+								 StructField(firstname,StringType,true),
+								 StructField(middlename,StringType,true), 	
+								 StructField(lastname,StringType,true)),true),
+						StructField(dob,StringType,true),
+						StructField(gender,StringType,true),
+						StructField(salary,StringType,true))
+
+scala> val df = spark.createDataFrame(spark.sparkContext.parallelize(data),schema)
+df: org.apache.spark.sql.DataFrame = [name: struct<firstname: string, middlename: string ... 1 more field>, dob: string ... 2 more fields]
+
+scala> df.show
++--------------------+-----+------+------+
+|                name|  dob|gender|salary|
++--------------------+-----+------+------+
+|   [James , , Smith]|36636|     M|  3000|
+|  [Michael , Rose, ]|40288|     M|  4000|
+|[Robert , , Willi...|42114|     M|  4000|
+|[Maria , Anne, Jo...|39192|     F|  4000|
+|  [Jen, Mary, Brown]|     |     F|    -1|
++--------------------+-----+------+------+
+
+scala> df.printSchema
+root
+ |-- name: struct (nullable = true)
+ |    |-- firstname: string (nullable = true)
+ |    |-- middlename: string (nullable = true)
+ |    |-- lastname: string (nullable = true)
+ |-- dob: string (nullable = true)
+ |-- gender: string (nullable = true)
+ |-- salary: string (nullable = true)
+
+How do you cast the datatype of column in dataframe? observe below with comparision of above last field 
+
+scala> df.withColumn("salary",col("salary").cast("Integer")).printSchema
+root
+ |-- name: struct (nullable = true)
+ |    |-- firstname: string (nullable = true)
+ |    |-- middlename: string (nullable = true)
+ |    |-- lastname: string (nullable = true)
+ |-- dob: string (nullable = true)
+ |-- gender: string (nullable = true)
+ |-- salary: integer (nullable = true)
+
+How do you update existed column value in dataframe ?? observe below, we are using existed column name with withColumn to update.
+
+scala> df.withColumn("salary",col("salary")*100).show
++--------------------+-----+------+--------+
+|                name|  dob|gender|  salary|
++--------------------+-----+------+--------+
+|   [James , , Smith]|36636|     M|300000.0|
+|  [Michael , Rose, ]|40288|     M|400000.0|
+|[Robert , , Willi...|42114|     M|400000.0|
+|[Maria , Anne, Jo...|39192|     F|400000.0|
+|  [Jen, Mary, Brown]|     |     F|  -100.0|
++--------------------+-----+------+--------+
+
+How do you add new column from existed column to existed dataframe ? notice below we have used withColumn with new column name.
+
+scala> df.withColumn("AddingNew",col("salary")*100).show
++--------------------+-----+------+------+---------+
+|                name|  dob|gender|salary|AddingNew|
++--------------------+-----+------+------+---------+
+|   [James , , Smith]|36636|     M|  3000| 300000.0|
+|  [Michael , Rose, ]|40288|     M|  4000| 400000.0|
+|[Robert , , Willi...|42114|     M|  4000| 400000.0|
+|[Maria , Anne, Jo...|39192|     F|  4000| 400000.0|
+|  [Jen, Mary, Brown]|     |     F|    -1|   -100.0|
++--------------------+-----+------+------+---------+
+
+Add a new column
+
+scala> df.withColumn("country", lit("USA")).show
++--------------------+-----+------+------+-------+
+|                name|  dob|gender|salary|country|
++--------------------+-----+------+------+-------+
+|   [James , , Smith]|36636|     M|  3000|    USA|
+|  [Michael , Rose, ]|40288|     M|  4000|    USA|
+|[Robert , , Willi...|42114|     M|  4000|    USA|
+|[Maria , Anne, Jo...|39192|     F|  4000|    USA|
+|  [Jen, Mary, Brown]|     |     F|    -1|    USA|
++--------------------+-----+------+------+-------+
+
+scala> df.withColumn("country", lit("India")).withColumn("State",lit("Karnataka")).show
++--------------------+-----+------+------+-------+---------+
+|                name|  dob|gender|salary|country|    State|
++--------------------+-----+------+------+-------+---------+
+|   [James , , Smith]|36636|     M|  3000|  India|Karnataka|
+|  [Michael , Rose, ]|40288|     M|  4000|  India|Karnataka|
+|[Robert , , Willi...|42114|     M|  4000|  India|Karnataka|
+|[Maria , Anne, Jo...|39192|     F|  4000|  India|Karnataka|
+|  [Jen, Mary, Brown]|     |     F|    -1|  India|Karnataka|
++--------------------+-----+------+------+-------+---------+
+
+Renaming a column 
+
+scala> df.withColumnRenamed("gender","Sex").show
++--------------------+-----+---+------+
+|                name|  dob|Sex|salary|
++--------------------+-----+---+------+
+|   [James , , Smith]|36636|  M|  3000|
+|  [Michael , Rose, ]|40288|  M|  4000|
+|[Robert , , Willi...|42114|  M|  4000|
+|[Maria , Anne, Jo...|39192|  F|  4000|
+|  [Jen, Mary, Brown]|     |  F|    -1|
++--------------------+-----+---+------+
+
+scala> val df1=df.withColumn("country", lit("India")).withColumn("State",lit("Karnataka"))
+df1: org.apache.spark.sql.DataFrame = [name: struct<firstname: string, middlename: string ... 1 more field>, dob: string ... 4 more fields]
+
+Drop a entire column
+
+scala> df1.drop("State").show
++--------------------+-----+------+------+-------+
+|                name|  dob|gender|salary|country|
++--------------------+-----+------+------+-------+
+|   [James , , Smith]|36636|     M|  3000|  India|
+|  [Michael , Rose, ]|40288|     M|  4000|  India|
+|[Robert , , Willi...|42114|     M|  4000|  India|
+|[Maria , Anne, Jo...|39192|     F|  4000|  India|
+|  [Jen, Mary, Brown]|     |     F|    -1|  India|
++--------------------+-----+------+------+-------+
+
+scala> import spark.implicits._
+import spark.implicits._
+
+scala> val columns = Seq("name","address")
+columns: Seq[String] = List(name, address)
+
+scala>  val data = Seq(("Robert, Smith", "1 Main st, Newark, NJ, 92537"),
+     |   ("Maria, Garcia","3456 Walnut st, Newark, NJ, 94732"))
+data: Seq[(String, String)] = List((Robert, Smith,1 Main st, Newark, NJ, 92537), (Maria, Garcia,3456 Walnut st, Newark, NJ, 94732))
+
+scala> var dfFromData = spark.createDataFrame(data).toDF(columns:_*)
+dfFromData: org.apache.spark.sql.DataFrame = [name: string, address: string]
+
+scala> dfFromData.show
++-------------+--------------------+
+|         name|             address|
++-------------+--------------------+
+|Robert, Smith|1 Main st, Newark...|
+|Maria, Garcia|3456 Walnut st, N...|
++-------------+--------------------+
+
+scala>  dfFromData.printSchema()
+root
+ |-- name: string (nullable = true)
+ |-- address: string (nullable = true)
+
+
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+   val newDF = dfFromData.map(f=>{
+      val nameSplit = f.getAs[String](0).split(",")
+      val addSplit = f.getAs[String](1).split(",")
+      (nameSplit(0),nameSplit(1),addSplit(0),addSplit(1),addSplit(2),addSplit(3))
+    })
+
+// Exiting paste mode, now interpreting.
+
+newDF: org.apache.spark.sql.Dataset[(String, String, String, String, String, String)] = [_1: string, _2: string ... 4 more fields]
+
+scala> val finalDF = newDF.toDF("First Name","Last Name",
+     |              "Address Line1","City","State","zipCode")
+finalDF: org.apache.spark.sql.DataFrame = [First Name: string, Last Name: string ... 4 more fields]
+
+scala> finalDF.printSchema()
+root
+ |-- First Name: string (nullable = true)
+ |-- Last Name: string (nullable = true)
+ |-- Address Line1: string (nullable = true)
+ |-- City: string (nullable = true)
+ |-- State: string (nullable = true)
+ |-- zipCode: string (nullable = true)
+
+
+scala>     finalDF.show(false)
++----------+---------+--------------+-------+-----+-------+
+|First Name|Last Name|Address Line1 |City   |State|zipCode|
++----------+---------+--------------+-------+-----+-------+
+|Robert    | Smith   |1 Main st     | Newark| NJ  | 92537 |
+|Maria     | Garcia  |3456 Walnut st| Newark| NJ  | 94732 |
++----------+---------+--------------+-------+-----+-------+
+
+scala> finalDF.withColumn("zipCode",when(trim(col("zipCode")) === 92537,999).otherwise(col("zipCode"))).show
++----------+---------+--------------+-------+-----+-------+
+|First Name|Last Name| Address Line1|   City|State|zipCode|
++----------+---------+--------------+-------+-----+-------+
+|    Robert|    Smith|     1 Main st| Newark|   NJ|    999|
+|     Maria|   Garcia|3456 Walnut st| Newark|   NJ|  94732|
++----------+---------+--------------+-------+-----+-------+
+
+==================================================================================
+
+scala> val columns = Seq("language","user_count")
+columns: Seq[String] = List(language, user_count)
+
+scala> columns(0)
+res0: String = language
+
+scala> columns(1)
+res1: String = user_count
+
+--> Seq is a trait, which is equivalent to java interface
+--> List is an abstract class that is extended by Nil or ::
+--> Scala's List is highly optimized by compiler and libraries and it's a fundamental data type in functional programming.
+
+scala> val rdd = spark.sparkContext.parallelize(data)
+rdd: org.apache.spark.rdd.RDD[(String, String)] = ParallelCollectionRDD[0] at parallelize at <console>:25
+
+Once we have an RDD, let’s use toDF() to create DataFrame in Spark. By default, it creates column names as “_1” and “_2” as we have two columns for each row.
+
+scala> rdd.toDF.show
++------+------+
+|    _1|    _2|
++------+------+
+|  Java|200000|
+|Python|150000|
+| Scala|100000|
++------+------+
+
+scala> dfFromRDD.printSchema
+root
+ |-- _1: string (nullable = true)
+ |-- _2: string (nullable = true)
+
+--> toDF() has another signature which takes arguments for custom column names
+
+scala> val df = rdd.toDF("language","user_count")
+df: org.apache.spark.sql.DataFrame = [language: string, user_count: string]
+
+scala> df.show()
++--------+----------+
+|language|user_count|
++--------+----------+
+|    Java|    200000|
+|  Python|    150000|
+|   Scala|    100000|
++--------+----------+
+
+scala> df.printSchema
+root
+ |-- language: string (nullable = true)
+ |-- user_count: string (nullable = true)
+
+--> By default, the datatype of these columns infers to the type of data.
+
+scala> val df = rdd.toDF(columns:_*)
+df: org.apache.spark.sql.DataFrame = [language: string, user_count: string]
+
+scala> df.show
++--------+----------+
+|language|user_count|
++--------+----------+
+|    Java|    200000|
+|  Python|    150000|
+|   Scala|    100000|
++--------+----------+
+
+Calling createDataFrame() from SparkSession is another way to create and it takes collection object (Seq or List) as an argument.
+
+scala> val df1 = spark.createDataFrame(data).toDF(columns:_*)
+df1: org.apache.spark.sql.DataFrame = [language: string, user_count: string]
+
+scala> df1.show()
++--------+----------+
+|language|user_count|
++--------+----------+
+|    Java|    200000|
+|  Python|    150000|
+|   Scala|    100000|
++--------+----------+
+
+createDataFrame() has another signature in Spark which takes the collection of Row type and schema for column names as arguments.
+
+scala> import org.apache.spark.sql.types._
+import org.apache.spark.sql.types._
+
+scala> val schema = StructType(columns.map(x=> StructField(x, StringType,true)))
+schema: org.apache.spark.sql.types.StructType = StructType(StructField(language,StringType,true), StructField(user_count,StringType,true))
+
+scala> val rowData = data.map(x => Row(x._1, x._2))
+rowData: Seq[org.apache.spark.sql.Row] = List([Java,200000], [Python,150000], [Scala,100000])
+
+scala> val df2 = spark.createDataFrame(rowData,schema)
+df2: org.apache.spark.sql.DataFrame = [language: string, user_count: string]
+
+scala> df2.show()
++--------+----------+
+|language|user_count|
++--------+----------+
+|    Java|    200000|
+|  Python|    150000|
+|   Scala|    100000|
++--------+----------+
+
+scala> df2.printSchema
+root
+ |-- language: string (nullable = true)
+ |-- user_count: string (nullable = true)
+
+scala> val csvDf = spark.read.csv("/user/eresht/sparkLab/TX417945_8515.csv")
+csvDf: org.apache.spark.sql.DataFrame = [_c0: string]
+
+scala> val textDf = spark.read.text("/user/eresht/sparkLab/xyz.txt")
+csvDf: org.apache.spark.sql.DataFrame = [value: string]
+
+scala> csvDf.show
++--------------------+
+|               value|
++--------------------+
+|        Hi Hi Hi Hi |
+|  Hello Hello Hello |
+|     Good Good Good |
+|Morning Morning M...|
++--------------------+
+
+
+scala> csvDf.collect
+res16: Array[org.apache.spark.sql.Row] = Array([Hi Hi Hi Hi ], [Hello Hello Hello ], [Good Good Good ], [Morning Morning Morning ])
+
+scala> val jsonDf = spark.read.json("/user/eresht/sparkLab/transactions.json")
+jsonDf: org.apache.spark.sql.DataFrame = [amt: bigint, category: string ... 7 more fields]
+
+scala> jsonDf.show(5)
++---+-------------+----------------+--------+---------+-----------+--------------------+--------------------+--------------------+
+|amt|     category|          cc_num|is_fraud|merch_lat| merch_long|            merchant|           trans_num|          trans_time|
++---+-------------+----------------+--------+---------+-----------+--------------------+--------------------+--------------------+
+| 64|personal_care| 180094108369013|       0|39.011566|-119.937831|         Hills-Boyer|80f5177be11f0bcd7...|2012-01-01T00:12:...|
+|133|gas_transport|4368593032190508|       0|40.149071| -75.589697|      Friesen-DAmore|7933d389bf8ef8a11...|2012-01-01T00:16:...|
+|119|entertainment|   4361355512072|       0|47.297797| -96.819362|         Larson-Moen|1467c318b5d73d22d...|2012-01-01T00:36:...|
+| 62| shopping_pos|4037295225657274|       0|40.078781|-102.373954|           Lynch Ltd|4a3848719d72daaa3...|2012-01-01T00:37:...|
+|198| shopping_pos|4515092388857440|       0|41.549359| -83.044403|Baumbach Strosin ...|02d27e94f279e1013...|2012-01-01T00:39:...|
++---+-------------+----------------+--------+---------+-----------+--------------------+--------------------+--------------------+
+only showing top 5 rows
+
+ val data = List(("James","","Smith","36636","M",60000),("Michael","Rose","","40288","M",70000),
+                    ("Robert","","Williams","42114","",400000),("Maria","Anne","Jones","39192","F",500000),
+                    ("Jen","Mary","Brown","","F",0))
+
+ val columns = Seq("first_name","middle_name","last_name","dob","gender","salary")
+
+ val df = spark.createDataFrame(data).toDF(columns:_*)
+
+scala> df.show
++----------+-----------+---------+-----+------+------+
+|first_name|middle_name|last_name|  dob|gender|salary|
++----------+-----------+---------+-----+------+------+
+|     James|           |    Smith|36636|     M| 60000|
+|   Michael|       Rose|         |40288|     M| 70000|
+|    Robert|           | Williams|42114|      |400000|
+|     Maria|       Anne|    Jones|39192|     F|500000|
+|       Jen|       Mary|    Brown|     |     F|     0|
++----------+-----------+---------+-----+------+------+
+
+scala> val df2 = df.withColumn("new_gender",when(col("gender")==="M","Male").when(col("gender")==="F","Female").otherwise("Unkwon"))
+df2: org.apache.spark.sql.DataFrame = [first_name: string, middle_name: string ... 5 more fields]
+
+scala> df2.show
++----------+-----------+---------+-----+------+------+----------+
+|first_name|middle_name|last_name|  dob|gender|salary|new_gender|
++----------+-----------+---------+-----+------+------+----------+
+|     James|           |    Smith|36636|     M| 60000|      Male|
+|   Michael|       Rose|         |40288|     M| 70000|      Male|
+|    Robert|           | Williams|42114|      |400000|    Unkwon|
+|     Maria|       Anne|    Jones|39192|     F|500000|    Female|
+|       Jen|       Mary|    Brown|     |     F|     0|    Female|
++----------+-----------+---------+-----+------+------+----------+
+
+scala> val df3 = df.select(col("*"), when(col("gender")==="M","Male").when(col("gender")==="F","Female").otherwise("Unknown").alias("New_gender"))
+df3: org.apache.spark.sql.DataFrame = [first_name: string, middle_name: string ... 5 more fields]
+
+scala> df3.show
++----------+-----------+---------+-----+------+------+----------+
+|first_name|middle_name|last_name|  dob|gender|salary|New_gender|
++----------+-----------+---------+-----+------+------+----------+
+|     James|           |    Smith|36636|     M| 60000|      Male|
+|   Michael|       Rose|         |40288|     M| 70000|      Male|
+|    Robert|           | Williams|42114|      |400000|   Unknown|
+|     Maria|       Anne|    Jones|39192|     F|500000|    Female|
+|       Jen|       Mary|    Brown|     |     F|     0|    Female|
++----------+-----------+---------+-----+------+------+----------+
+
+scala> val df4 = df.withColumn("new_gender",expr("case when gender='M' then 'Male' "+"when gender ='F' then 'Female'"+"else 'Unknown' end"))
+df4: org.apache.spark.sql.DataFrame = [first_name: string, middle_name: string ... 5 more fields]
+
+scala> df4.show
++----------+-----------+---------+-----+------+------+----------+
+|first_name|middle_name|last_name|  dob|gender|salary|new_gender|
++----------+-----------+---------+-----+------+------+----------+
+|     James|           |    Smith|36636|     M| 60000|      Male|
+|   Michael|       Rose|         |40288|     M| 70000|      Male|
+|    Robert|           | Williams|42114|      |400000|   Unknown|
+|     Maria|       Anne|    Jones|39192|     F|500000|    Female|
+|       Jen|       Mary|    Brown|     |     F|     0|    Female|
++----------+-----------+---------+-----+------+------+----------+
+
+
+
+scala> val df5 = df.select(col("*"), expr("case when gender='M' then 'Male'"+"when gender='F' then 'Female'"+"else 'unknown' end").alias("new_gender"))
+df5: org.apache.spark.sql.DataFrame = [first_name: string, middle_name: string ... 5 more fields]
+
+scala> df5.show
++----------+-----------+---------+-----+------+------+----------+
+|first_name|middle_name|last_name|  dob|gender|salary|new_gender|
++----------+-----------+---------+-----+------+------+----------+
+|     James|           |    Smith|36636|     M| 60000|      Male|
+|   Michael|       Rose|         |40288|     M| 70000|      Male|
+|    Robert|           | Williams|42114|      |400000|   unknown|
+|     Maria|       Anne|    Jones|39192|     F|500000|    Female|
+|       Jen|       Mary|    Brown|     |     F|     0|    Female|
++----------+-----------+---------+-----+------+------+----------+
+
+scala> val dataDF = Seq((66, "a", "4"), (67, "a", "0"), (70, "b", "4"), (71, "d", "4")).toDF("id", "code", "amt")
+20/02/04 14:25:27 WARN lineage.LineageWriter: Lineage directory /var/log/spark/lineage doesn't exist or is not writable. Lineage for this application will be disabled.
+dataDF: org.apache.spark.sql.DataFrame = [id: int, code: string ... 1 more field]
+
+scala> dataDF.show
++---+----+---+
+| id|code|amt|
++---+----+---+
+| 66|   a|  4|
+| 67|   a|  0|
+| 70|   b|  4|
+| 71|   d|  4|
++---+----+---+
+scala> val df1 = dataDF.withColumn("new_column", when(col("code")==="a"||col("code")==="b", "A").when(col("code")==="d" && col("amt")==="4","B").otherwise("A1"))
+df1: org.apache.spark.sql.DataFrame = [id: int, code: string ... 2 more fields]
+
+scala> df1.show
++---+----+---+----------+
+| id|code|amt|new_column|
++---+----+---+----------+
+| 66|   a|  4|         A|
+| 67|   a|  0|         A|
+| 70|   b|  4|         A|
+| 71|   d|  4|         B|
++---+----+---+----------+
+
+scala> val data = Seq(("Banana",1000,"USA"), ("Carrots",1500,"USA"), ("Beans",1600,"USA"),
+     |       ("Orange",2000,"USA"),("Orange",2000,"USA"),("Banana",400,"China"),
+     |       ("Carrots",1200,"China"),("Beans",1500,"China"),("Orange",4000,"China"),
+     |       ("Banana",2000,"Canada"),("Carrots",2000,"Canada"),("Beans",2000,"Mexico"))
+data: Seq[(String, Int, String)] = List((Banana,1000,USA), (Carrots,1500,USA), (Beans,1600,USA), (Orange,2000,USA), (Orange,2000,USA), (Banana,400,China), (Carrots,1200,China), (Beans,1500,China), (Orange,4000,China), (Banana,2000,Canada), (Carrots,2000,Canada), (Beans,2000,Mexico))
+
+scala> import spark.implicits._
+import spark.implicits._
+
+scala> val df = data.toDF("Product","Amount","Country")
+df: org.apache.spark.sql.DataFrame = [Product: string, Amount: int ... 1 more field]
+
+scala> df.show
++-------+------+-------+
+|Product|Amount|Country|
++-------+------+-------+
+| Banana|  1000|    USA|
+|Carrots|  1500|    USA|
+|  Beans|  1600|    USA|
+| Orange|  2000|    USA|
+| Orange|  2000|    USA|
+| Banana|   400|  China|
+|Carrots|  1200|  China|
+|  Beans|  1500|  China|
+| Orange|  4000|  China|
+| Banana|  2000| Canada|
+|Carrots|  2000| Canada|
+|  Beans|  2000| Mexico|
++-------+------+-------+
+
+--> Spark SQL provides pivot function to rotate the data from one column into multiple columns.
+--> It is an aggregation where one of the grouping columns values transposed into individual columns with distinct data.
+
+scala> df.groupBy("Product").
+agg   avg   count   max   mean   min   pivot   sum   toString
+
+scala> df.groupBy("Product").avg("Amount")
+res7: org.apache.spark.sql.DataFrame = [Product: string, avg(Amount): double]
+
+scala> df.groupBy("Product").avg("Amount").show
++-------+------------------+
+|Product|       avg(Amount)|
++-------+------------------+
+| Orange|2666.6666666666665|
+|  Beans|            1700.0|
+| Banana|1133.3333333333333|
+|Carrots|1566.6666666666667|
++-------+------------------+
+
+scala> df.groupBy("Product").pivot("Country").sum("Amount").show
++-------+------+-----+------+----+
+|Product|Canada|China|Mexico| USA|
++-------+------+-----+------+----+
+| Orange|  null| 4000|  null|4000|
+|  Beans|  null| 1500|  2000|1600|
+| Banana|  2000|  400|  null|1000|
+|Carrots|  2000| 1200|  null|1500|
++-------+------+-----+------+----+
+
+scala> val df5 = df.groupBy("Product","Country").sum("Amount").groupBy("Product").pivot("Country").sum("sum(Amount)")
+df5: org.apache.spark.sql.DataFrame = [Product: string, Canada: bigint ... 3 more fields]
+
+scala> df5.show()
++-------+------+-----+------+----+
+|Product|Canada|China|Mexico| USA|
++-------+------+-----+------+----+
+| Orange|  null| 4000|  null|4000|
+|  Beans|  null| 1500|  2000|1600|
+| Banana|  2000|  400|  null|1000|
+|Carrots|  2000| 1200|  null|1500|
++-------+------+-----+------+----+
+
+scala> val unPivotDF= pivotDF.select($"Product", expr("stack(4, 'Canada', Canada, 'China', China, 'Mexico', Mexico,'USA',USA) as (Country,Total)")).where("Total is not null")
+unPivotDF: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [Product: string, Country: string ... 1 more field]
+
+scala> unPivotDF.show
++-------+-------+-----+
+|Product|Country|Total|
++-------+-------+-----+
+| Orange|  China| 4000|
+| Orange|    USA| 4000|
+|  Beans|  China| 1500|
+|  Beans| Mexico| 2000|
+|  Beans|    USA| 1600|
+| Banana| Canada| 2000|
+| Banana|  China|  400|
+| Banana|    USA| 1000|
+|Carrots| Canada| 2000|
+|Carrots|  China| 1200|
+|Carrots|    USA| 1500|
++-------+-------+-----+
+
+
+scala> val df = Seq(
+     |   ("col1", "val1"),
+     |   ("col2", "val2"),
+     |   ("col3", "val3"),
+     |   ("col4", "val4"),
+     |   ("col5", "val5")
+     | ).toDF("COLUMN_NAME", "VALUE")
+df: org.apache.spark.sql.DataFrame = [COLUMN_NAME: string, VALUE: string]
+
+scala> df.show
++-----------+-----+
+|COLUMN_NAME|VALUE|
++-----------+-----+
+|       col1| val1|
+|       col2| val2|
+|       col3| val3|
+|       col4| val4|
+|       col5| val5|
++-----------+-----+
+
+
+scala> df.select(collect
+collect_list   collect_set   collection
+
+scala> df.select(collect_list("COLUMN_NAME")).first
+res27: org.apache.spark.sql.Row = [WrappedArray(col3, col4, col5, col1, col2)]
+
+scala> df.select(collect_list("COLUMN_NAME")).first.getAs[Seq[String]](0)
+res28: Seq[String] = WrappedArray(col1, col2, col3, col4, col5)
+
+scala> import org.apache.spark.sql.Row
+import org.apache.spark.sql.Row
+
+scala> val rdd = sc.parallelize(Seq(Row.fromSeq(df.select(collect_list("VALUE")).first.getAs[Seq[String]](0))))
+rdd: org.apache.spark.rdd.RDD[org.apache.spark.sql.Row] = ParallelCollectionRDD[219] at parallelize at <console>:33
+
+scala> val df1 = spark.createDataFrame(rdd,schema)
+df1: org.apache.spark.sql.DataFrame = [col3: string, col4: string ... 3 more fields]
+
+scala> df1.show
++----+----+----+----+----+
+|col3|col4|col5|col1|col2|
++----+----+----+----+----+
+|val3|val4|val5|val1|val2|
++----+----+----+----+----+
+
+
+
+
+scala> df.
+agg                    createOrReplaceGlobalTempView   filter             isStreaming       randomSplitAsList      sparkSession      unionAll
+alias                  createOrReplaceTempView         first              javaRDD           rdd                    sqlContext        unionByName
+apply                  createTempView                  flatMap            join              reduce                 stat              unpersist
+as                     crossJoin                       foreach            joinWith          registerTempTable      storageLevel      where
+cache                  cube                            foreachPartition   limit             repartition            summary           withColumn
+checkpoint             describe                        groupBy            localCheckpoint   repartitionByRange     take              withColumnRenamed
+coalesce               distinct                        groupByKey         map               rollup                 takeAsList        withWatermark
+col                    drop                            head               mapPartitions     sample                 toDF              write
+colRegex               dropDuplicates                  hint               na                schema                 toJSON            writeStream
+collect                dtypes                          inputFiles         orderBy           select                 toJavaRDD
+collectAsList          except                          intersect          persist           selectExpr             toLocalIterator
+columns                exceptAll                       intersectAll       printSchema       show                   toString
+count                  explain                         isEmpty            queryExecution    sort                   transform
+createGlobalTempView   explode                         isLocal            randomSplit       sortWithinPartitions   union
+
+scala> dataset.
+agg                    createOrReplaceGlobalTempView   filter             isStreaming       randomSplitAsList      sparkSession      unionAll
+alias                  createOrReplaceTempView         first              javaRDD           rdd                    sqlContext        unionByName
+apply                  createTempView                  flatMap            join              reduce                 stat              unpersist
+as                     crossJoin                       foreach            joinWith          registerTempTable      storageLevel      where
+cache                  cube                            foreachPartition   limit             repartition            summary           withColumn
+checkpoint             describe                        groupBy            localCheckpoint   repartitionByRange     take              withColumnRenamed
+coalesce               distinct                        groupByKey         map               rollup                 takeAsList        withWatermark
+col                    drop                            head               mapPartitions     sample                 toDF              write
+colRegex               dropDuplicates                  hint               na                schema                 toJSON            writeStream
+collect                dtypes                          inputFiles         orderBy           select                 toJavaRDD
+collectAsList          except                          intersect          persist           selectExpr             toLocalIterator
+columns                exceptAll                       intersectAll       printSchema       show                   toString
+count                  explain                         isEmpty            queryExecution    sort                   transform
+createGlobalTempView   explode                         isLocal            randomSplit       sortWithinPartitions   union
+
+
+--> Spark provides spark.sql.types.StructType class to define the structure of the DataFrame and It is a collection or list on StructField objects. 
+--> StructType is a collection of StructField’s which is used to define the column name, data type and a flag for nullable or not. 
+--> Using StructField we can also add nested struct schema, ArrayType for arrays and MapType for key-value pairs.
+
+scala> case class StructType(fields:Array[StructField])
+defined class StructType
+
+scala> case class StructField(name:String, dataType:DataType, nullable:Boolean =true, metadata:Metadata=Metadata.empty)
+defined class StructField
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+val simpleData = Seq(Row("James ","","Smith","36636","M",3000),
+    Row("Michael ","Rose","","40288","M",4000),
+    Row("Robert ","","Williams","42114","M",4000),
+    Row("Maria ","Anne","Jones","39192","F",4000),
+    Row("Jen","Mary","Brown","","F",-1)
+  )
+
+val simpleSchema = StructType(Array(
+    StructField("firstname",StringType,true),
+    StructField("middlename",StringType,true),
+    StructField("lastname",StringType,true),
+    StructField("id", StringType, true),
+    StructField("gender", StringType, true),
+    StructField("salary", IntegerType, true)
+  ))
+
+  val df = spark.createDataFrame(
+      spark.sparkContext.parallelize(simpleData),simpleSchema)
+  df.printSchema()
+  df.show()
+
+// Exiting paste mode, now interpreting.
+
+20/02/05 11:37:55 WARN lineage.LineageWriter: Lineage directory /var/log/spark/lineage doesn't exist or is not writable. Lineage for this application will be disabled.
+root
+ |-- firstname: string (nullable = true)
+ |-- middlename: string (nullable = true)
+ |-- lastname: string (nullable = true)
+ |-- id: string (nullable = true)
+ |-- gender: string (nullable = true)
+ |-- salary: integer (nullable = true)
+
++---------+----------+--------+-----+------+------+
+|firstname|middlename|lastname|   id|gender|salary|
++---------+----------+--------+-----+------+------+
+|   James |          |   Smith|36636|     M|  3000|
+| Michael |      Rose|        |40288|     M|  4000|
+|  Robert |          |Williams|42114|     M|  4000|
+|   Maria |      Anne|   Jones|39192|     F|  4000|
+|      Jen|      Mary|   Brown|     |     F|    -1|
++---------+----------+--------+-----+------+------+
+
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+ val arrayStructureData = Seq(
+    Row(Row("James","","Smith"),List("Java","Scala","C++"),"OH","M"),
+    Row(Row("Anna","Rose",""),List("Spark","Java","C++"),"NY","F"),
+    Row(Row("Julia","","Williams"),List("CSharp","VB"),"OH","F"),
+    Row(Row("Maria","Anne","Jones"),List("CSharp","VB"),"NY","M"),
+    Row(Row("Jen","Mary","Brown"),List("CSharp","VB"),"NY","M"),
+    Row(Row("Mike","Mary","Williams"),List("Python","VB"),"OH","M")
+  )
+
+  val arrayStructureSchema = new StructType()
+    .add("name",new StructType()
+      .add("firstname",StringType)
+      .add("middlename",StringType)
+      .add("lastname",StringType))
+    .add("languages", ArrayType(StringType))
+    .add("state", StringType)
+    .add("gender", StringType)
+
+  val df = spark.createDataFrame(
+    spark.sparkContext.parallelize(arrayStructureData),arrayStructureSchema)
+  df.printSchema()
+
+// Exiting paste mode, now interpreting.
+
+root
+ |-- name: struct (nullable = true)
+ |    |-- firstname: string (nullable = true)
+ |    |-- middlename: string (nullable = true)
+ |    |-- lastname: string (nullable = true)
+ |-- languages: array (nullable = true)
+ |    |-- element: string (containsNull = true)
+ |-- state: string (nullable = true)
+ |-- gender: string (nullable = true)
+
+arrayStructureData: Seq[org.apache.spark.sql.Row] = List([[James,,Smith],List(Java, Scala, C++),OH,M], [[Anna,Rose,],List(Spark, Java, C++),NY,F], [[Julia,,Williams],List(CSharp, VB),OH,F], [[Maria,Anne,Jones],List(CSharp, VB),NY,M], [[Jen,Mary,Brown],List(CSharp, VB),NY,M], [[Mike,Mary,Williams],List(Python, VB),OH,M])
+arrayStructureSchema: org.apache.spark.sql.types.StructType = StructType(StructField(name,StructType(StructField(firstname,StringType,true), StructField(middlename,StringType,true), StructField(lastname,StringType,true)),true), StructField(languages,ArrayType(StringType,true),true), StructField(state,StringType,true), StructField(gender,StringType,true))
+df: org.apache.spark.sql.DataFrame = [name: struct<firstname: string, middlename: string ... 1 more field>, languages:...
+scala> df.show
++--------------------+------------------+-----+------+
+|                name|         languages|state|gender|
++--------------------+------------------+-----+------+
+|    [James, , Smith]|[Java, Scala, C++]|   OH|     M|
+|      [Anna, Rose, ]|[Spark, Java, C++]|   NY|     F|
+| [Julia, , Williams]|      [CSharp, VB]|   OH|     F|
+|[Maria, Anne, Jones]|      [CSharp, VB]|   NY|     M|
+|  [Jen, Mary, Brown]|      [CSharp, VB]|   NY|     M|
+|[Mike, Mary, Will...|      [Python, VB]|   OH|     M|
++--------------------+------------------+-----+------+
+
+scala> df.filter(df("state") === "OH").show
++--------------------+------------------+-----+------+
+|                name|         languages|state|gender|
++--------------------+------------------+-----+------+
+|    [James, , Smith]|[Java, Scala, C++]|   OH|     M|
+| [Julia, , Williams]|      [CSharp, VB]|   OH|     F|
+|[Mike, Mary, Will...|      [Python, VB]|   OH|     M|
++--------------------+------------------+-----+------+
+
+scala> df.filter(df("state")==="OH" && df("gender")==="M").show
++--------------------+------------------+-----+------+
+|                name|         languages|state|gender|
++--------------------+------------------+-----+------+
+|    [James, , Smith]|[Java, Scala, C++]|   OH|     M|
+|[Mike, Mary, Will...|      [Python, VB]|   OH|     M|
++--------------------+------------------+-----+------+
+
+scala> df.filter(array_contains(df("languages"),"Java")).show
++----------------+------------------+-----+------+
+|            name|         languages|state|gender|
++----------------+------------------+-----+------+
+|[James, , Smith]|[Java, Scala, C++]|   OH|     M|
+|  [Anna, Rose, ]|[Spark, Java, C++]|   NY|     F|
++----------------+------------------+-----+------+
+
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+ val emp = Seq((1,"Smith",-1,"2018","10","M",3000),
+    (2,"Rose",1,"2010","20","M",4000),
+    (3,"Williams",1,"2010","10","M",1000),
+    (4,"Jones",2,"2005","10","F",2000),
+    (5,"Brown",2,"2010","40","",-1),
+      (6,"Brown",2,"2010","50","",-1)
+  )
+  val empColumns = Seq("emp_id","name","superior_emp_id","year_joined",
+       "emp_dept_id","gender","salary")
+  import spark.sqlContext.implicits._
+  val empDF = emp.toDF(empColumns:_*)
+
+// Exiting paste mode, now interpreting.
+
+emp: Seq[(Int, String, Int, String, String, String, Int)] = List((1,Smith,-1,2018,10,M,3000), (2,Rose,1,2010,20,M,4000), (3,Williams,1,2010,10,M,1000), (4,Jones,2,2005,10,F,2000), (5,Brown,2,2010,40,"",-1), (6,Brown,2,2010,50,"",-1))
+empColumns: Seq[String] = List(emp_id, name, superior_emp_id, year_joined, emp_dept_id, gender, salary)
+import spark.sqlContext.implicits._
+empDF: org.apache.spark.sql.DataFrame = [emp_id: int, name: string ... 5 more fields]
+
+scala> empDF.show
++------+--------+---------------+-----------+-----------+------+------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|
++------+--------+---------------+-----------+-----------+------+------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|
+|     2|    Rose|              1|       2010|         20|     M|  4000|
+|     3|Williams|              1|       2010|         10|     M|  1000|
+|     4|   Jones|              2|       2005|         10|     F|  2000|
+|     5|   Brown|              2|       2010|         40|      |    -1|
+|     6|   Brown|              2|       2010|         50|      |    -1|
++------+--------+---------------+-----------+-----------+------+------+
+
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+  val dept = Seq(("Finance",10),
+    ("Marketing",20),
+    ("Sales",30),
+    ("IT",40)
+  )
+
+  val deptColumns = Seq("dept_name","dept_id")
+  val deptDF = dept.toDF(deptColumns:_*)
+  deptDF.show(false)
+
+dept: Seq[(String, Int)] = List((Finance,10), (Marketing,20), (Sales,30), (IT,40))
+deptColumns: Seq[String] = List(dept_name, dept_id)
+deptDF: org.apache.spark.sql.DataFrame = [dept_name: string, dept_id: int]
+
+scala> deptDF.show
++---------+-------+
+|dept_name|dept_id|
++---------+-------+
+|  Finance|     10|
+|Marketing|     20|
+|    Sales|     30|
+|       IT|     40|
++---------+-------+
+
+JOINS:
+======
+--> Inner join is the default join in Spark, this joins two datasets on key columns and where keys don’t match the rows get dropped from both datasets.
+
+scala> empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"inner").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"outer").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     6|   Brown|              2|       2010|         50|      |    -1|     null|   null|
+|  null|    null|           null|       null|       null|  null|  null|    Sales|     30|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"full").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     6|   Brown|              2|       2010|         50|      |    -1|     null|   null|
+|  null|    null|           null|       null|       null|  null|  null|    Sales|     30|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"fullouter").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     6|   Brown|              2|       2010|         50|      |    -1|     null|   null|
+|  null|    null|           null|       null|       null|  null|  null|    Sales|     30|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"left").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
+|     6|   Brown|              2|       2010|         50|      |    -1|     null|   null|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"leftouter").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
+|     6|   Brown|              2|       2010|         50|      |    -1|     null|   null|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"rightouter").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|  null|    null|           null|       null|       null|  null|  null|    Sales|     30|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"right").show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|  null|    null|           null|       null|       null|  null|  null|    Sales|     30|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"leftsemi").show
++------+--------+---------------+-----------+-----------+------+------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|
++------+--------+---------------+-----------+-----------+------+------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|
+|     2|    Rose|              1|       2010|         20|     M|  4000|
+|     3|Williams|              1|       2010|         10|     M|  1000|
+|     4|   Jones|              2|       2005|         10|     F|  2000|
+|     5|   Brown|              2|       2010|         40|      |    -1|
++------+--------+---------------+-----------+-----------+------+------+
+
+--> leftsemi join is similar to inner join difference being leftsemi join returns all columns from the left dataset and ignores all columns from the right dataset. 
+
+scala>  empDF.join(deptDF, empDF("emp_dept_id") === deptDF("dept_id"),"leftanti").show
++------+-----+---------------+-----------+-----------+------+------+
+|emp_id| name|superior_emp_id|year_joined|emp_dept_id|gender|salary|
++------+-----+---------------+-----------+-----------+------+------+
+|     6|Brown|              2|       2010|         50|      |    -1|
++------+-----+---------------+-----------+-----------+------+------+
+
+Self Join:
+
+scala> empDF.as("emp1").join(empDF.as("emp2"),col("emp1.superior_emp_id") === col("emp2.emp_id"),"inner").show
++------+--------+---------------+-----------+-----------+------+------+------+-----+---------------+-----------+-----------+------+------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|emp_id| name|superior_emp_id|year_joined|emp_dept_id|gender|salary|
++------+--------+---------------+-----------+-----------+------+------+------+-----+---------------+-----------+-----------+------+------+
+|     2|    Rose|              1|       2010|         20|     M|  4000|     1|Smith|             -1|       2018|         10|     M|  3000|
+|     3|Williams|              1|       2010|         10|     M|  1000|     1|Smith|             -1|       2018|         10|     M|  3000|
+|     4|   Jones|              2|       2005|         10|     F|  2000|     2| Rose|              1|       2010|         20|     M|  4000|
+|     5|   Brown|              2|       2010|         40|      |    -1|     2| Rose|              1|       2010|         20|     M|  4000|
+|     6|   Brown|              2|       2010|         50|      |    -1|     2| Rose|              1|       2010|         20|     M|  4000|
++------+--------+---------------+-----------+-----------+------+------+------+-----+---------------+-----------+-----------+------+------+
+
+With Spark SQL 
+
+scala>   val joinDF = spark.sql("select * from EMP e, DEPT d where e.emp_dept_id == d.dept_id")
+joinDF: org.apache.spark.sql.DataFrame = [emp_id: int, name: string ... 7 more fields]
+
+scala> joinDF.show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala>   val joinDF = spark.sql("SELECT * FROM EMP INNER JOIN DEPT ON EMP.EMP_DEPT_ID == DEPT.DEPT_ID")
+joinDF: org.apache.spark.sql.DataFrame = [emp_id: int, name: string ... 7 more fields]
+
+scala> joinDF.show
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|emp_id|    name|superior_emp_id|year_joined|emp_dept_id|gender|salary|dept_name|dept_id|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+|     1|   Smith|             -1|       2018|         10|     M|  3000|  Finance|     10|
+|     2|    Rose|              1|       2010|         20|     M|  4000|Marketing|     20|
+|     3|Williams|              1|       2010|         10|     M|  1000|  Finance|     10|
+|     4|   Jones|              2|       2005|         10|     F|  2000|  Finance|     10|
+|     5|   Brown|              2|       2010|         40|      |    -1|       IT|     40|
++------+--------+---------------+-----------+-----------+------+------+---------+-------+
+
+scala> df.show
++--------------------+------------------+-----+------+
+|                name|         languages|state|gender|
++--------------------+------------------+-----+------+
+|    [James, , Smith]|[Java, Scala, C++]|   OH|     M|
+|      [Anna, Rose, ]|[Spark, Java, C++]|   NY|     F|
+| [Julia, , Williams]|      [CSharp, VB]|   OH|     F|
+|[Maria, Anne, Jones]|      [CSharp, VB]|   NY|     M|
+|  [Jen, Mary, Brown]|      [CSharp, VB]|   NY|     M|
+|[Mike, Mary, Will...|      [Python, VB]|   OH|     M|
++--------------------+------------------+-----+------+
+
+
+scala> df.withColumn("Country",lit("USA")).show
++--------------------+------------------+-----+------+-------+
+|                name|         languages|state|gender|Country|
++--------------------+------------------+-----+------+-------+
+|    [James, , Smith]|[Java, Scala, C++]|   OH|     M|    USA|
+|      [Anna, Rose, ]|[Spark, Java, C++]|   NY|     F|    USA|
+| [Julia, , Williams]|      [CSharp, VB]|   OH|     F|    USA|
+|[Maria, Anne, Jones]|      [CSharp, VB]|   NY|     M|    USA|
+|  [Jen, Mary, Brown]|      [CSharp, VB]|   NY|     M|    USA|
+|[Mike, Mary, Will...|      [Python, VB]|   OH|     M|    USA|
++--------------------+------------------+-----+------+-------+
+
+scala> spark.sql("select * from employee").withColumn("DoubleSalary",$"salary"*2).show
++----------+-----------+---------+-----+------+------+----------+------------+
+|first_name|middle_name|last_name|  dob|gender|salary|new_gender|DoubleSalary|
++----------+-----------+---------+-----+------+------+----------+------------+
+|     James|           |    Smith|36636|     M| 60000|      Male|      120000|
+|   Michael|       Rose|         |40288|     M| 70000|      Male|      140000|
+|    Robert|           | Williams|42114|      |400000|    Unkwon|      800000|
+|     Maria|       Anne|    Jones|39192|     F|500000|    Female|     1000000|
+|       Jen|       Mary|    Brown|     |     F|     0|    Female|           0|
++----------+-----------+---------+-----+------+------+----------+------------+
+
+--> Spark Window functions operate on a group of rows and return a single value for every input row.
+--> Spark SQL supports three kinds of window functions: 1.ranking functions 2.analytic functions 3.aggregate functions
+
+scala> import spark.implicits._
+import spark.implicits._
+
+scala> :paste
+// Entering paste mode (ctrl-D to finish)
+
+val simpleData = Seq(("James", "Sales", 3000),
+    ("Michael", "Sales", 4600),
+    ("Robert", "Sales", 4100),
+    ("Maria", "Finance", 3000),
+    ("James", "Sales", 3000),
+    ("Scott", "Finance", 3300),
+    ("Jen", "Finance", 3900),
+    ("Jeff", "Marketing", 3000),
+    ("Kumar", "Marketing", 2000),
+    ("Saif", "Sales", 4100)
+  )
+
+// Exiting paste mode, now interpreting.
+
+simpleData: Seq[(String, String, Int)] = List((James,Sales,3000), (Michael,Sales,4600), (Robert,Sales,4100), (Maria,Finance,3000), (James,Sales,3000), (Scott,Finance,3300), (Jen,Finance,3900), (Jeff,Marketing,3000), (Kumar,Marketing,2000), (Saif,Sales,4100))
+
+scala>   val df = simpleData.toDF("employee_name", "department", "salary")
+20/02/06 10:26:17 WARN lineage.LineageWriter: Lineage directory /var/log/spark/lineage doesn't exist or is not writable. Lineage for this application will be disabled.
+df: org.apache.spark.sql.DataFrame = [employee_name: string, department: string ... 1 more field]
+
+scala> df.show
++-------------+----------+------+
+|employee_name|department|salary|
++-------------+----------+------+
+|        James|     Sales|  3000|
+|      Michael|     Sales|  4600|
+|       Robert|     Sales|  4100|
+|        Maria|   Finance|  3000|
+|        James|     Sales|  3000|
+|        Scott|   Finance|  3300|
+|          Jen|   Finance|  3900|
+|         Jeff| Marketing|  3000|
+|        Kumar| Marketing|  2000|
+|         Saif|     Sales|  4100|
++-------------+----------+------+
+
+scala> import org.apache.spark.sql.expressions.Window
+
+scala> val windowSpec  = Window.partitionBy("department").orderBy("salary")
+windowSpec: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@55774c4f
+
+scala> df.withColumn("ROW_NUMBER",row_number.over(windowSpec)).show
++-------------+----------+------+----------+
+|employee_name|department|salary|ROW_NUMBER|
++-------------+----------+------+----------+
+|        James|     Sales|  3000|         1|
+|        James|     Sales|  3000|         2|
+|       Robert|     Sales|  4100|         3|
+|         Saif|     Sales|  4100|         4|
+|      Michael|     Sales|  4600|         5|
+|        Maria|   Finance|  3000|         1|
+|        Scott|   Finance|  3300|         2|
+|          Jen|   Finance|  3900|         3|
+|        Kumar| Marketing|  2000|         1|
+|         Jeff| Marketing|  3000|         2|
++-------------+----------+------+----------+
+
+scala> df.withColumn("ROW_NUMBER",row_number.over(windowSpec)).where("ROW_NUMBER==1")
+res13: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [employee_name: string, department: string ... 2 more fields]
+
+scala> df.withColumn("ROW_NUMBER",row_number.over(windowSpec)).where("ROW_NUMBER==1").show
++-------------+----------+------+----------+
+|employee_name|department|salary|ROW_NUMBER|
++-------------+----------+------+----------+
+|        James|     Sales|  3000|         1|
+|        Maria|   Finance|  3000|         1|
+|        Kumar| Marketing|  2000|         1|
++-------------+----------+------+----------+
+
+scala> df.withColumn("ROW_NUMBER",row_number().over(windowSpec)).where("ROW_NUMBER =2").show
++-------------+----------+------+----------+
+|employee_name|department|salary|ROW_NUMBER|
++-------------+----------+------+----------+
+|        James|     Sales|  3000|         2|
+|        Scott|   Finance|  3300|         2|
+|         Jeff| Marketing|  3000|         2|
++-------------+----------+------+----------+
+
+scala> df.withColumn("RANK",rank().over(windowSpec)).show
++-------------+----------+------+----+
+|employee_name|department|salary|RANK|
++-------------+----------+------+----+
+|        James|     Sales|  3000|   1|
+|        James|     Sales|  3000|   1|
+|       Robert|     Sales|  4100|   3|
+|         Saif|     Sales|  4100|   3|
+|      Michael|     Sales|  4600|   5|
+|        Maria|   Finance|  3000|   1|
+|        Scott|   Finance|  3300|   2|
+|          Jen|   Finance|  3900|   3|
+|        Kumar| Marketing|  2000|   1|
+|         Jeff| Marketing|  3000|   2|
++-------------+----------+------+----+
+
+scala> df.withColumn("RANK",rank().over(windowSpec)).where("RANK=1").show
++-------------+----------+------+----+
+|employee_name|department|salary|RANK|
++-------------+----------+------+----+
+|        James|     Sales|  3000|   1|
+|        James|     Sales|  3000|   1|
+|        Maria|   Finance|  3000|   1|
+|        Kumar| Marketing|  2000|   1|
++-------------+----------+------+----+
+
+scala> df.withColumn("DENSE_RANK", dense_rank.over(windowSpec)).show
++-------------+----------+------+----------+
+|employee_name|department|salary|DENSE_RANK|
++-------------+----------+------+----------+
+|        James|     Sales|  3000|         1|
+|        James|     Sales|  3000|         1|
+|       Robert|     Sales|  4100|         2|
+|         Saif|     Sales|  4100|         2|
+|      Michael|     Sales|  4600|         3|
+|        Maria|   Finance|  3000|         1|
+|        Scott|   Finance|  3300|         2|
+|          Jen|   Finance|  3900|         3|
+|        Kumar| Marketing|  2000|         1|
+|         Jeff| Marketing|  3000|         2|
++-------------+----------+------+----------+
+
+
+scala> df.withColumn("PERCENT_RANK",percent_rank.over(windowSpec)).show
++-------------+----------+------+------------+
+|employee_name|department|salary|PERCENT_RANK|
++-------------+----------+------+------------+
+|        James|     Sales|  3000|         0.0|
+|        James|     Sales|  3000|         0.0|
+|       Robert|     Sales|  4100|         0.5|
+|         Saif|     Sales|  4100|         0.5|
+|      Michael|     Sales|  4600|         1.0|
+|        Maria|   Finance|  3000|         0.0|
+|        Scott|   Finance|  3300|         0.5|
+|          Jen|   Finance|  3900|         1.0|
+|        Kumar| Marketing|  2000|         0.0|
+|         Jeff| Marketing|  3000|         1.0|
++-------------+----------+------+------------+
+
+scala> df.withColumn("NTILE",ntile(2).over(windowSpec)).show
++-------------+----------+------+-----+
+|employee_name|department|salary|NTILE|
++-------------+----------+------+-----+
+|        James|     Sales|  3000|    1|
+|        James|     Sales|  3000|    1|
+|       Robert|     Sales|  4100|    1|
+|         Saif|     Sales|  4100|    2|
+|      Michael|     Sales|  4600|    2|
+|        Maria|   Finance|  3000|    1|
+|        Scott|   Finance|  3300|    1|
+|          Jen|   Finance|  3900|    2|
+|        Kumar| Marketing|  2000|    1|
+|         Jeff| Marketing|  3000|    2|
++-------------+----------+------+-----+
+
+NTILE will help you to store your values into specified number of buckets.
+
+scala> df.withColumn("buckets",ntile(4).over(windowSpec)).show
++-------------+----------+------+-------+
+|employee_name|department|salary|buckets|
++-------------+----------+------+-------+
+|        James|     Sales|  3000|      1|
+|        James|     Sales|  3000|      1|
+|         Saif|     Sales|  4100|      2|
+|       Robert|     Sales|  4100|      3|
+|      Michael|     Sales|  4600|      4|
+|        Maria|   Finance|  3000|      1|
+|        Scott|   Finance|  3300|      2|
+|          Jen|   Finance|  3900|      3|
+|        Kumar| Marketing|  2000|      1|
+|         Jeff| Marketing|  3000|      2|
++-------------+----------+------+-------+
+
+cume_dist is similar to dense_rank 
+
+scala> df.withColumn("CUMULATIVE",cume_dist.over(windowSpec)).show
++-------------+----------+------+------------------+
+|employee_name|department|salary|        CUMULATIVE|
++-------------+----------+------+------------------+
+|        James|     Sales|  3000|               0.4|
+|        James|     Sales|  3000|               0.4|
+|       Robert|     Sales|  4100|               0.8|
+|         Saif|     Sales|  4100|               0.8|
+|      Michael|     Sales|  4600|               1.0|
+|        Maria|   Finance|  3000|0.3333333333333333|
+|        Scott|   Finance|  3300|0.6666666666666666|
+|          Jen|   Finance|  3900|               1.0|
+|        Kumar| Marketing|  2000|               0.5|
+|         Jeff| Marketing|  3000|               1.0|
++-------------+----------+------+------------------+
+
+
+scala> df.withColumn("LagBy2Values", lag("Salary",2).over(windowSpec)).show
++-------------+----------+------+------------+
+|employee_name|department|salary|LagBy2Values|
++-------------+----------+------+------------+
+|        James|     Sales|  3000|        null|
+|        James|     Sales|  3000|        null|
+|         Saif|     Sales|  4100|        3000|
+|       Robert|     Sales|  4100|        3000|
+|      Michael|     Sales|  4600|        4100|
+|        Maria|   Finance|  3000|        null|
+|        Scott|   Finance|  3300|        null|
+|          Jen|   Finance|  3900|        3000|
+|        Kumar| Marketing|  2000|        null|
+|         Jeff| Marketing|  3000|        null|
++-------------+----------+------+------------+
+
+scala> df.withColumn("LagBy2Values", lag("Salary",1).over(windowSpec)).show
++-------------+----------+------+------------+
+|employee_name|department|salary|LagBy2Values|
++-------------+----------+------+------------+
+|        James|     Sales|  3000|        null|
+|        James|     Sales|  3000|        3000|
+|         Saif|     Sales|  4100|        3000|
+|       Robert|     Sales|  4100|        4100|
+|      Michael|     Sales|  4600|        4100|
+|        Maria|   Finance|  3000|        null|
+|        Scott|   Finance|  3300|        3000|
+|          Jen|   Finance|  3900|        3300|
+|        Kumar| Marketing|  2000|        null|
+|         Jeff| Marketing|  3000|        2000|
++-------------+----------+------+------------+
+
+scala> df.withColumn("LagBy2Values", lead("Salary",1).over(windowSpec)).show
++-------------+----------+------+------------+
+|employee_name|department|salary|LagBy2Values|
++-------------+----------+------+------------+
+|        James|     Sales|  3000|        3000|
+|        James|     Sales|  3000|        4100|
+|       Robert|     Sales|  4100|        4100|
+|         Saif|     Sales|  4100|        4600|
+|      Michael|     Sales|  4600|        null|
+|        Maria|   Finance|  3000|        3300|
+|        Scott|   Finance|  3300|        3900|
+|          Jen|   Finance|  3900|        null|
+|        Kumar| Marketing|  2000|        3000|
+|         Jeff| Marketing|  3000|        null|
++-------------+----------+------+------------+
+
+scala> Seq(("2019-01-23")).toDF("input").select(current_date()as("current_date"),$"input",date_format($"input", "MM-dd-yyyy").as("format")).show
++------------+----------+----------+
+|current_date|     input|    format|
++------------+----------+----------+
+|  2020-02-06|2019-01-23|01-23-2019|
++------------+----------+----------+
+
+
+DATASETS IN SPARK:
+
+--> Datasets are faster than RDD's and DataFrames because of tungesten framework.
+--> Both RDD and dataframe uses in-memory computing which is very faster than traditional disk computing.
+--> Tungsten uses CPU caches, along with in-memory computing.
+--> Computing using CPU caches is very faster than in-memory computing 
+--> Speed of CPU cache is greater than speed of in-memory is greater than speed of disk computing.
+
+scala> case class Sample(a:Int, b:Int)
+
+scala> val rdd = sc.parallelize(List(Sample(10,20),Sample(1,2),Sample(5,6),Sample(100,200),Sample(1000,2000)))
+rdd: org.apache.spark.rdd.RDD[Sample] = ParallelCollectionRDD[5] at parallelize at <console>:30
+
+scala> val df = rdd.toDF
+df: org.apache.spark.sql.DataFrame = [a: int, b: int]
+
+scala> df.show
++----+----+
+|   a|   b|
++----+----+
+|  10|  20|
+|   1|   2|
+|   5|   6|
+| 100| 200|
+|1000|2000|
++----+----+
+
+scala> df.printSchema
+root
+ |-- a: integer (nullable = false)
+ |-- b: integer (nullable = false)
+
+scala> df.select("A") 
+res6: org.apache.spark.sql.DataFrame = [A: int]
+
+scala> df.select("A").show
++----+
+|   A|
++----+
+|  10|
+|   1|
+|   5|
+| 100|
+|1000|
++----+
+
+scala> df.select("a","b").show
++----+----+
+|   a|   b|
++----+----+
+|  10|  20|
+|   1|   2|
+|   5|   6|
+| 100| 200|
+|1000|2000|
++----+----+
+
+scala>  df.select(df("a"),df("b")+10).show
++----+--------+
+|   a|(b + 10)|
++----+--------+
+|  10|      30|
+|   1|      12|
+|   5|      16|
+| 100|     210|
+|1000|    2010|
++----+--------+
+
+scala> df.filter(df("a")>=100).show
++----+----+
+|   a|   b|
++----+----+
+| 100| 200|
+|1000|2000|
++----+----+
+
+scala> df.groupBy("a").count().show
++----+-----+
+|   a|count|
++----+-----+
+|   1|    1|
+|   5|    1|
+| 100|    1|
+|1000|    1|
+|  10|    1|
++----+-----+
+
+scala> spark.catalog.listTables.show
++----------+--------+-----------+---------+-----------+
+|      name|database|description|tableType|isTemporary|
++----------+--------+-----------+---------+-----------+
+| customers| default|       null|  MANAGED|      false|
+|customers1| default|       null|  MANAGED|      false|
+|lac_master| default|       null| EXTERNAL|      false|
+|      tbl1| default|       null|  MANAGED|      false|
+|      tbl2| default|       null| EXTERNAL|      false|
++----------+--------+-----------+---------+-----------+
+
+scala> spark.sql("SELECT * FROM ERESHT.EMP").show
++-------------+----------+------+
+|employee_name|department|salary|
++-------------+----------+------+
+|        James|     Sales|  3000|
+|      Michael|     Sales|  4600|
+|       Robert|     Sales|  4100|
+|        Maria|   Finance|  3000|
+|        James|     Sales|  3000|
+|        Scott|   Finance|  3300|
+|          Jen|   Finance|  3900|
+|         Jeff| Marketing|  3000|
+|        Kumar| Marketing|  2000|
+|         Saif|     Sales|  4100|
++-------------+----------+------+
+
+scala> empDF.groupBy("department").count().show
++----------+-----+
+|department|count|
++----------+-----+
+|     Sales|    5|
+|   Finance|    3|
+| Marketing|    2|
++----------+-----+
+
+scala> empDF.groupBy("department").agg(sum("salary"),avg("salary"),min("salary")).show
++----------+-----------+-----------+-----------+
+|department|sum(salary)|avg(salary)|min(salary)|
++----------+-----------+-----------+-----------+
+|     Sales|      18800|     3760.0|       3000|
+|   Finance|      10200|     3400.0|       3000|
+| Marketing|       5000|     2500.0|       2000|
++----------+-----------+-----------+-----------+
+
+scala> empDF.groupBy("department").agg(sum("salary"),avg("salary"),min("salary"),count("salary")).show
++----------+-----------+-----------+-----------+-------------+
+|department|sum(salary)|avg(salary)|min(salary)|count(salary)|
++----------+-----------+-----------+-----------+-------------+
+|     Sales|      18800|     3760.0|       3000|            5|
+|   Finance|      10200|     3400.0|       3000|            3|
+| Marketing|       5000|     2500.0|       2000|            2|
++----------+-----------+-----------+-----------+-------------+
+
+scala> empDF.groupBy("department","salary").agg(sum("salary"),avg("salary"),min("salary"),count("salary")).show
++----------+------+-----------+-----------+-----------+-------------+
+|department|salary|sum(salary)|avg(salary)|min(salary)|count(salary)|
++----------+------+-----------+-----------+-----------+-------------+
+|   Finance|  3900|       3900|     3900.0|       3900|            1|
+|   Finance|  3000|       3000|     3000.0|       3000|            1|
+|   Finance|  3300|       3300|     3300.0|       3300|            1|
+|     Sales|  4600|       4600|     4600.0|       4600|            1|
+| Marketing|  2000|       2000|     2000.0|       2000|            1|
+|     Sales|  4100|       8200|     4100.0|       4100|            2|
+|     Sales|  3000|       6000|     3000.0|       3000|            2|
+| Marketing|  3000|       3000|     3000.0|       3000|            1|
++----------+------+-----------+-----------+-----------+-------------+
+
+scala> val ds = Seq(1,2,3,4).toDS()
+ds: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+scala> ds.show
++-----+
+|value|
++-----+
+|    1|
+|    2|
+|    3|
+|    4|
++-----+
+
+scala> ds.map(x => x+10).collect
+res28: Array[Int] = Array(11, 12, 13, 14)
+
+scala> case class Person(name:String, age:BigInt)
+defined class Person
+
+scala> val jsonDS = spark.read.json("/user/eresht/sparkLab/sample.json").as[Person]
+jsonDF: org.apache.spark.sql.Dataset[Person] = [age: bigint, name: string]
+
+scala> jsonDF.show
++---+-----+
+|age| name|
++---+-----+
+| 25| John|
+| 30|Smith|
+| 28|Donna|
++---+-----+
+
+scala> df.select(min("salary"),sum($"salary"),count('salary)).show
++-----------+-----------+-------------+
+|min(salary)|sum(salary)|count(salary)|
++-----------+-----------+-------------+
+|       2000|      34000|           10|
++-----------+-----------+-------------+
+
+--> Typed transformations will give you back as Datasets whereas untyped transformations will give you back DataFrame.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

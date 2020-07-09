@@ -1,0 +1,65 @@
+$ docker images
+
+$ docker pull postgres:11.5
+
+$ docker run -d --name my-postgres-container -p 5555:5432 5f1485c70c9a 
+
+With password you can use below command 
+
+$ docker run --name my-postgres-container -p 5555:5432 -e POSTGRES_PASSWORD=postgres -d postgres
+
+OR 
+
+$ docker run --name my_postgres -e POSTGRES_PASSWORD=postgres -d postgres:11.5
+
+$ docker exec -it my-postgres-container bash
+
+$ docker ps 
+
+$ docker run --name postgres-docker -p 5555:5432 -e POSTGRES_PASSWORD=postgres -d postgres
+
+$ docker container stop 5f1485c70c9a
+
+OR
+
+$ docker container stop my-postgres-container
+
+
+$ psql -U postgres
+
+ create database fifa;
+
+ 	\connect fifa
+
+ create schema info;
+
+
+docker exec -it my-postgres_forToday bash
+
+
+
+
+fifa=# select count(1) from test;
+ count
+-------
+ 17966
+(1 row)
+
+fifa=# select * from test;
+          Name          |              Club Name              |  Wage  |   Value   | Overall Rating |    Joined    | Age |       Countr
+y
+------------------------+-------------------------------------+--------+-----------+----------------+--------------+-----+-------------
+---------
+ L. Messi               | FC Barcelona                        | 565000 | 110000000 |             94 | Jul 1, 2004  |  31 | Argentina
+ Cristiano Ronaldo      | Juventus                            | 405000 |  77000000 |             94 | Jul 10, 2018 |  33 | Portugal
+ Neymar Jr              | Paris Saint-Germain                 | 290000 | 118000000 |             92 | Aug 3, 2017  |  26 | Brazil
+ De Gea                 | Manchester United                   | 260000 |  72000000 |             91 | Jul 1, 2011  |  27 | Spain
+ K. De Bruyne           | Manchester City                     | 355000 | 102000000 |             91 | Aug 30, 2015 |  27 | Belgium
+ E. Hazard              | Chelsea                             | 340000 |  93000000 |             91 | Jul 1, 2012  |  27 | Belgium
+ L. Modrić              | Real Madrid                         | 420000 |  67000000 |             91 | Aug 1, 2012  |  32 | Croatia
+ L. Suárez              | FC Barcelona                        | 455000 |  80000000 |             91 | Jul 11, 2014 |  31 | Uruguay
+ Sergio Ramos           | Real Madrid                         | 380000 |  51000000 |             91 | Aug 1, 2005  |  32 | Spain
+ J. Oblak               | Atlético Madrid                     |  94000 |  68000000 |             90 | Jul 16, 2014 |  25 | Slovenia
+ R. Lewandowski         | FC Bayern München                   | 205000 |  77000000 |             90 | Jul 1, 2014  |  29 | Poland
+ T. Kroos               | Real Madrid                         | 355000 |  76000000 |             90 | Jul 17, 2014 |  28 | Germany
+

@@ -1,0 +1,81 @@
+Download git and install 
+-----------------------
+Link - https://git-scm.com/
+
+> git --version
+
+> git config --global user.name "eresht" 
+
+> git config --global user.name 
+
+> git config --global user.email "eresht@maveric-systems.com"
+
+> git config --global user.email
+
+> git config --global --list
+
+Create project in your local location and open command prompt and go to the created project folder location and enter below command to initialize project.
+
+> git init
+
+Go to inside your created project folder and create README.txt and check the status and you will notice untraceable files in RED mark.
+
+> git status
+
+> git add README.txt  --> to add single file
+
+> git add . --> to Add multiple files 
+
+> git commit -m "my first commit"
+
+> git push -u "URL of your project in gitlab" master
+
+Forking project 
+---------------
+>>> A fork is a copy of project
+>>> Forking a project/repo allows you to make changes withou affecting the original project.
+
+# Login to GitLab and goto your project
+# Click on Fork button
+
+if you get message -> "No available namespaces to fork the project." Then do the following below 
+
+Go to groups -> click on your groups -> Click on New group -> give name of the group.
+
+Now go to your projects  -> go to your project -> try to fork it -> Done 
+
+
+Merge requests 
+--------------
+
+Click on merge requests -> 
+
+
+$ git clone https://gitlab.com/eresht/livemarketdata.git
+$ cd livemarketdata/
+$ git remote -v
+origin  https://gitlab.com/eresht/livemarketdata.git (fetch)
+origin  https://gitlab.com/eresht/livemarketdata.git (push)
+
+$ git remote add upstream https://gitlab.com/maveric-bdlab-python/livemarketdata.git
+
+$ git remote -v
+origin  https://gitlab.com/eresht/livemarketdata.git (fetch)
+origin  https://gitlab.com/eresht/livemarketdata.git (push)
+upstream        https://gitlab.com/maveric-bdlab-python/livemarketdata.git (fetch)
+upstream        https://gitlab.com/maveric-bdlab-python/livemarketdata.git (push)
+
+$ git fetch upstream
+From https://gitlab.com/maveric-bdlab-python/livemarketdata
+ * [new branch]      HEAD           -> upstream/HEAD
+ * [new branch]      master         -> upstream/master
+ * [new branch]      mavericDatalab -> upstream/mavericDatalab
+ * [new branch]      patch-1        -> upstream/patch-1
+
+$ git merge upstream/master
+Already up to date.
+
+
+
+
+

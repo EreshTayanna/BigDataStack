@@ -1,0 +1,47 @@
+
+
+https://stackoverflow.com/questions/59586700/implement-scd-type-2-in-spark
+
+https://medium.com/@jafeer/slowly-changing-dimensions-scd-type-2-and-effective-ways-of-handling-it-in-apache-spark-a04ba235284b#:~:text=Open%20in%20app-,Slowly%20Changing%20Dimensions%20(SCD)%20Type%202%20and%20effective%20ways%20of,handling%20it%20in%20Apache%20Spark&text=What%20is%20SCD%20type%202,the%20current%20record%20is%20closed.
+
+pyspark --packages org.mongodb.spark:mongo-spark-connector_2.11:2.4.1
+
+from pyspark.sql import SparkSession
+spark = SparkSession\
+    .builder\
+    .master('local')\
+    .config('spark.mongodb.input.uri', 'mongodb://user:password@ip.x.x.x:27017/database01.data.coll')\
+    .config('spark.mongodb.output.uri', 'mongodb://user:password@ip.x.x.x:27017/database01.data.coll')\
+    .config('spark.jars.packages', 'org.mongodb.spark:mongo-spark-connector_2.11:2.3.1')\
+    .getOrCreate()
+
+ df01 = spark.read\
+    .format("com.mongodb.spark.sql.DefaultSource")\
+    .option("database","database01")\
+    .option("collection", "collection01")\
+    .load()
+
+ df01.write.format("com.mongodb.spark.sql.DefaultSource")\
+    .mode("overwrite")\
+    .option("database","database01")\
+    .option("collection", "collection02")\
+    .save()
+
+====================================================================================
+
+How to destroy broadcast variable in spark ?
+
+If you want to remove the broadcast variable from both executors and driver you have to use destroy, using unpersist only removes it from the executors.
+
+myVarBroadcasted.destroy()
+
+myVarBroadcasted.unpersist(blocking = true)
+
+Broadcast variables are stored as ArrayBuffers of deserialized Java objects or serialized ByteBuffers.
+
+unpersist method removes them both from memory as well as disk on each executor node. But it stays on the driver node, so it can be re-broadcast.
+
+Let's say you have large dataframe and small dataframe, which join will you perform ?
+
+https://stackoverflow.com/questions/32435263/dataframe-join-optimization-broadcast-hash-join
+
