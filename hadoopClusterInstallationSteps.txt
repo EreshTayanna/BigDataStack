@@ -1,8 +1,3 @@
-/**************Hadoop In Real World**************/
-Hadoop In Real World *** http://www.hadoopinrealworld.com
-Hive - Cluster Setup
-/**************Hadoop In Real World**************/
-
 #############################
 
 Create Instances
