@@ -1557,7 +1557,7 @@ scala> df.select(min("salary"),sum($"salary"),count('salary)).show
 --> Typed transformations will give you back as Datasets whereas untyped transformations will give you back DataFrame.
 
 
-
+https://stackoverflow.com/questions/57014043/reading-data-from-url-using-spark-databricks-platform
 
 
 
